@@ -2,9 +2,10 @@ from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from openpyxl.styles import colors
 from openpyxl.styles import Font, Color
-
+import pandas as pd
 import json
 import os
+import numpy as np
 import glob
 from json import JSONEncoder
 import pandas as pd
@@ -160,48 +161,77 @@ def filer_report(rep):
     return new_rep
 
 
-weight_table = {
-    'atari'                   : (2.88, 26.5405955792167),
-    'cart'                    : (2.67, 7302.07868564706),
-    'convnet_distributed_fp16': (3.16, 787.612513885864),
-    'convnet_distributed'     : (2.97, 679.552350938073),
-    'convnet_fp16'            : (2.97, 1679.83933693595),
-    'convnet'                 : (2.79, 854.372140032470),
-    'dcgan_all'               : (2.97, 309.723619627068),
-    'dcgan'                   : (2.79, 953.948799476626),
-    'fast_style'              : (2.79, 1012.08893408226),
-    'loader'                  : (2.96, 7399.55789895996),
-    'recom'                   : (2.81, 74767.2559322286),
-    'reso'                    : (2.79, 1177.57382438524),
-    'ssd'                     : (2.79, 145.729436411335),
-    'toy_lstm'                : (2.67, 4.10197009223690),
-    'toy_reg'                 : (2.67, 1234013.49127685),
-    'translator'              : (2.78, 900.443830123957),
-    'vae'                     : (2.79, 27375.6153865499),
-    'wlm'                     : (2.78, 6487.87603739007),
-    'wlmfp16'                 : (2.96, 22089.7959228754),
-}
+weight_table = [
+    ('atari'                   , (2.88, 26.5405955792167)),
+    ('cart'                    , (2.67, 7302.07868564706)),
+    ('convnet_distributed_fp16', (3.16, 787.612513885864)),
+    ('convnet_distributed'     , (2.97, 679.552350938073)),
+    ('convnet_fp16'            , (2.97, 1679.83933693595)),
+    ('convnet'                 , (2.79, 854.372140032470)),
+    ('dcgan_all'               , (2.97, 309.723619627068)),
+    ('dcgan'                   , (2.79, 953.948799476626)),
+    ('fast_style'              , (2.79, 1012.08893408226)),
+    ('loader'                  , (2.96, 7399.55789895996)),
+    ('recom'                   , (2.81, 74767.2559322286)),
+    ('reso'                    , (2.79, 1177.57382438524)),
+    ('ssd'                     , (2.79, 145.729436411335)),
+    ('toy_lstm'                , (2.67, 4.10197009223690)),
+    ('toy_reg'                 , (2.67, 1234013.49127685)),
+    ('translator'              , (2.78, 900.443830123957)),
+    ('vae'                     , (2.79, 27375.6153865499)),
+    ('wlmfp16'                 , (2.96, 22089.7959228754)),
+    ('wlm'                     , (2.78, 6487.87603739007)),
+]
 
-
-import pandas as pd
 df = pd.DataFrame(filer_report(perf_reports))
 df.loc[:, 'result'] = (df.sum(axis=1) - df.max(axis=1) - df.min(axis=1)) / (df.count(axis=1) - 2)
 
-final_report = {}
-total = 0
-wtotal = 0
 
-for k, value in df['result'].items():
+def compute_overall_score(df, col='result'):
+    final_report = {}
+    total = 0
+    wtotal = 0
 
-    for bk, (w, b) in weight_table.items():
-        if k.startswith(bk):
-            v = value * w / b
-            final_report[k] = v
-            total += v
-            wtotal += w
+    for k, value in df[col].items():
 
-final_report['total'] = total / wtotal
-print(json.dumps(final_report, indent=2))
+        for bk, (w, b) in weight_table:
+            if k.startswith(bk):
+                v = value * w / b
+                final_report[k] = v
+                total += v
+                wtotal += w
+                break
+
+    final_report['total'] = total / wtotal
+    return final_report
+
+
+report= compute_overall_score(df)
+print(json.dumps(report, indent=2))
 
 df.to_csv('report.csv')
+
+
+# Over 10 tests
+# Check variance
+def check_variance(df):
+    scores = []
+    for i in ['output2', 'output8', 'output1', 'output10', 'output4', 'output5',
+              'output9', 'output7', 'output6', 'output0', 'output3']:
+
+        report = compute_overall_score(df, col=i)
+        scores.append(report['total'])
+
+    scores = np.array(scores)
+    variance = scores.std() * 100 / scores.mean()
+
+    print(f'Mean: {scores.mean()}')
+    print(f'  SD: {scores.std()}')
+    print(f' SD%: {variance}')
+
+    # Results must be consistent
+    assert variance < 1
+    return scores
+
+check_variance(df)
 
