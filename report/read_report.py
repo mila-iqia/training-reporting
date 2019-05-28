@@ -16,7 +16,7 @@ sys.stderr = sys.stdout
 # from pandas.io.json import json_normalize
 
 
-job_definition_file = f'../../baselines.json'
+job_definition_file = f'/home/user1/work/training/baselines.json'
 job_definition = json.loads(open(job_definition_file, 'r').read())
 
 report_folder = f'/home/setepenre/mlperf_output/'
@@ -138,7 +138,7 @@ for vendor_name in os.listdir(report_folder):
 
         for bench_result in reports:
             bench_name = bench_result['name']
-            print(bench_result['unique_id'])
+            #print(bench_result['unique_id'])
 
             if 'fp16' in bench_result:
                 bench_name += '_fp16'
