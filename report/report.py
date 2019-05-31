@@ -233,5 +233,6 @@ def check_variance(df):
     assert variance < 1
     return scores
 
+
 check_variance(df)
 
