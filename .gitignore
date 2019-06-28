@@ -19,3 +19,5 @@ singularity/nvidia_img/
 singularity/rocm_img/
 *.pt
 *.xlsx
+
+report.egg-info
