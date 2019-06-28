@@ -181,8 +181,9 @@ def show_perf(folder_name):
     sd = df.std(axis=1)
     df.loc[:, 'result'] = (df.sum(axis=1) - df.max(axis=1) - df.min(axis=1)) / (df.count(axis=1) - 2)
     df.loc[:, 'sd'] = sd
+    df.loc[:, 'sd%'] = sd / df.loc[:, 'result']
 
-    return df.loc[:, ('result', 'sd')]
+    return df.loc[:, ('result', 'sd', 'sd%')]
 
 
 def compute_overall_score(df, col='result'):
@@ -243,7 +244,15 @@ def main():
     args = parser.parse_args()
     df = show_perf(args.reports)
 
+    pd.set_option('display.max_colwidth', 80)
+    pd.set_option('display.max_rows', 500)
+    pd.set_option('display.max_columns', 500)
+    pd.set_option('display.width', 1000)
+
+    print('--')
     print(df)
+    print('--')
+    print(f'Error Margin: {df["sd%"].mean() * 100:.4f} %')
 
 
 if __name__ == '__main__':
