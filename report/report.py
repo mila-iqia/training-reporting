@@ -40,14 +40,14 @@ class Accumulator:
         return f'(avg={self.avg}, {len(self)})'
 
 
-def extract_reports(report_folder):
+def extract_reports(report_folder, report_names='baselines'):
     perf_reports = {}
     batch_reports = {}
 
     for vendor_name in os.listdir(report_folder):
         printf(f'Processing vendor: {vendor_name}')
 
-        baselines_results = glob.glob(f'{report_folder}/{vendor_name}/baselines_*')
+        baselines_results = glob.glob(f'{report_folder}/{vendor_name}/{report_names}*')
 
         device_count = len(baselines_results)
         printf(f'Found reports for {device_count} GPUs', indent=1)
@@ -174,8 +174,8 @@ weight_table = [
 ]
 
 
-def show_perf(folder_name):
-    perf_reports = extract_reports(folder_name)
+def show_perf(folder_name, report_name):
+    perf_reports = extract_reports(folder_name, report_name)
     df = pd.DataFrame(filer_report(perf_reports, 'avg'))
 
     sd = df.std(axis=1)
@@ -239,10 +239,11 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--reports')
+    parser.add_argument('--reports', type=str, help='folder containing all the reports reports/folder/name.json')
+    parser.add_argument('--name', type=str, default='baselines', help='name of the report to load')
 
     args = parser.parse_args()
-    df = show_perf(args.reports)
+    df = show_perf(args.reports, args.name)
 
     pd.set_option('display.max_colwidth', 80)
     pd.set_option('display.max_rows', 500)
