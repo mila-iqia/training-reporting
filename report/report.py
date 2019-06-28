@@ -1,16 +1,8 @@
-from openpyxl import Workbook
-from openpyxl.utils.dataframe import dataframe_to_rows
-from openpyxl.styles import colors
-from openpyxl.styles import Font, Color
-import pandas as pd
 import json
 import os
 import numpy as np
 import glob
-from json import JSONEncoder
 import pandas as pd
-from math import isnan, isinf
-import sys
 
 
 def read_results(report_name):
@@ -18,15 +10,8 @@ def read_results(report_name):
     return json.loads(str_report + ']')
 
 
-report_folder = f'/home/user1/mlperf/results_1/power9'
-
-
 def printf(*args, indent=0, **kwargs):
     print(' ' * (indent * 4), *args, **kwargs)
-
-
-perf_reports = {}
-batch_reports = {}
 
 
 class Accumulator:
@@ -48,7 +33,6 @@ class Accumulator:
     def __len__(self):
         return len(self.values)
 
-    @property
     def avg(self):
         return self.sum() / len(self)
 
@@ -56,98 +40,104 @@ class Accumulator:
         return f'(avg={self.avg}, {len(self)})'
 
 
-for vendor_name in os.listdir(report_folder):
-    printf(f'Processing vendor: {vendor_name}')
+def extract_reports(report_folder):
+    perf_reports = {}
+    batch_reports = {}
 
-    baselines_results = glob.glob(f'{report_folder}/{vendor_name}/baselines_*')
+    for vendor_name in os.listdir(report_folder):
+        printf(f'Processing vendor: {vendor_name}')
 
-    device_count = len(baselines_results)
-    printf(f'Found reports for {device_count} GPUs', indent=1)
-    vendor_perf_reports = {}
-    vendor_batch_loss_reports = {}
+        baselines_results = glob.glob(f'{report_folder}/{vendor_name}/baselines_*')
 
-    perf_reports[vendor_name] = vendor_perf_reports
-    batch_reports[vendor_name] = vendor_batch_loss_reports
+        device_count = len(baselines_results)
+        printf(f'Found reports for {device_count} GPUs', indent=1)
+        vendor_perf_reports = {}
+        vendor_batch_loss_reports = {}
 
-    # we want device 0 to be first since it is the report with the most reports (distributed)
-    baselines_results.sort()
+        perf_reports[vendor_name] = vendor_perf_reports
+        batch_reports[vendor_name] = vendor_batch_loss_reports
 
-    for idx, device_reports in enumerate(baselines_results):
-        printf(f'Reading (device_id: {idx}) (report: {device_reports})', indent=2)
+        # we want device 0 to be first since it is the report with the most reports (distributed)
+        baselines_results.sort()
 
-        # List of Results for each Trial
-        reports = read_results(device_reports)
+        for idx, device_reports in enumerate(baselines_results):
+            printf(f'Reading (device_id: {idx}) (report: {device_reports})', indent=2)
 
-        for bench_result in reports:
-            bench_name = bench_result['name']
-            uid = bench_result['unique_id']
-            version = bench_result['version']
-            unique_id = bench_name  # (uid, bench_name)
+            # List of Results for each Trial
+            reports = read_results(device_reports)
 
-            # Select the task that matters
-            if bench_name == 'wlm' and bench_result['model'] != 'GRU':
-                continue
+            for bench_result in reports:
+                bench_name = bench_result['name']
+                uid = bench_result['unique_id']
+                version = bench_result['version']
+                unique_id = bench_name  # (uid, bench_name)
 
-            if bench_name == 'wlmfp16' and bench_result['model'] != 'GRU':
-                continue
+                # Select the task that matters
+                if bench_name == 'wlm' and bench_result['model'] != 'GRU':
+                    continue
 
-            if bench_name == 'loader' and bench_result['batch_size'] != 256:
-                continue
+                if bench_name == 'wlmfp16' and bench_result['model'] != 'GRU':
+                    continue
 
-            if bench_name == 'toy_lstm' and bench_result['dtype'] != 'float32':
-                continue
+                if bench_name == 'loader' and bench_result['batch_size'] != 256:
+                    continue
 
-            if bench_name == 'ssd' and len(bench_result['vcd']) > 1:
-                continue
+                if bench_name == 'toy_lstm' and bench_result['dtype'] != 'float32':
+                    continue
 
-            if bench_name == 'image_loading_loader_pytorch_loaders.py':
-                batch_size = bench_result['batch_size']
-                unique_id = f'{unique_id}_{batch_size}'
-                version = f'{unique_id}_{batch_size}'
+                if bench_name == 'ssd' and len(bench_result['vcd']) > 1:
+                    continue
 
-            printf(f'Processing {bench_name} {version}', indent=3)
+                if bench_name == 'image_loading_loader_pytorch_loaders.py':
+                    batch_size = bench_result['batch_size']
+                    unique_id = f'{unique_id}_{batch_size}'
+                    version = f'{unique_id}_{batch_size}'
 
-            if unique_id in vendor_perf_reports and idx == 0:
-                printf(f'[!] Error two benchmark with the same name (name: {bench_name})', indent=4)
-            elif idx == 0:
-                perf_report = dict(
-                    train_item=Accumulator(),
-                    unique_id=uid,
-                    version=version,
-                    error=[],
-                    name=bench_name,
-                )
-                vendor_perf_reports[unique_id] = perf_report
+                printf(f'Processing {bench_name} {version}', indent=3)
 
-            elif unique_id not in vendor_perf_reports:
-                printf(f'[!] Error missing benchmark for previous GPU (name: {bench_name})', indent=4)
-                perf_report = dict(train_item=Accumulator(), unique_id=uid, version=version, error=[])
-                vendor_perf_reports[unique_id] = perf_report
+                if unique_id in vendor_perf_reports and idx == 0:
+                    printf(f'[!] Error two benchmark with the same name (name: {bench_name})', indent=4)
+                elif idx == 0:
+                    perf_report = dict(
+                        train_item=Accumulator(),
+                        unique_id=uid,
+                        version=version,
+                        error=[],
+                        name=bench_name,
+                    )
+                    vendor_perf_reports[unique_id] = perf_report
 
-            # Accumulate values
-            perf_report = vendor_perf_reports[unique_id]
-            if perf_report['unique_id'] != uid:
-                printf(f'[!] Error unique_ids do not match cannot aggregate (name: {bench_name})!', indent=4)
-                perf_report['error'].append('id mismatch')
+                elif unique_id not in vendor_perf_reports:
+                    printf(f'[!] Error missing benchmark for previous GPU (name: {bench_name})', indent=4)
+                    perf_report = dict(train_item=Accumulator(), unique_id=uid, version=version, error=[])
+                    vendor_perf_reports[unique_id] = perf_report
 
-            elif perf_report['version'] != version:
-                printf(f'[!] Error versions do not match cannot aggregate!', indent=4)
-                perf_report['error'].append('version mismatch')
+                # Accumulate values
+                perf_report = vendor_perf_reports[unique_id]
+                if perf_report['unique_id'] != uid:
+                    printf(f'[!] Error unique_ids do not match cannot aggregate (name: {bench_name})!', indent=4)
+                    perf_report['error'].append('id mismatch')
 
-            else:
-                perf_report['train_item'].append(bench_result['train_item']['avg'])
+                elif perf_report['version'] != version:
+                    printf(f'[!] Error versions do not match cannot aggregate!', indent=4)
+                    perf_report['error'].append('version mismatch')
 
-            batch_loss = bench_result.get('batch_loss')
-            if batch_loss is None:
-                printf(f'/!\\ No batch loss for benchmark (name: {bench_name})', indent=4)
-            else:
-                if unique_id not in vendor_batch_loss_reports:
-                    vendor_batch_loss_reports[unique_id] = []
+                else:
+                    perf_report['train_item'].append(bench_result['train_item']['avg'])
 
-                vendor_batch_loss_reports[unique_id].append(batch_loss)
+                batch_loss = bench_result.get('batch_loss')
+                if batch_loss is None:
+                    printf(f'/!\\ No batch loss for benchmark (name: {bench_name})', indent=4)
+                else:
+                    if unique_id not in vendor_batch_loss_reports:
+                        vendor_batch_loss_reports[unique_id] = []
+
+                    vendor_batch_loss_reports[unique_id].append(batch_loss)
+
+    return perf_reports
 
 
-def filer_report(rep):
+def filer_report(rep, agg):
     new_rep = {}
 
     for vendor, report in rep.items():
@@ -156,7 +146,7 @@ def filer_report(rep):
 
         for name, v in report.items():
             key = f'{name}_{v["version"]}_{v["unique_id"]}'
-            vendor_rep[key] = v['train_item'].sum()
+            vendor_rep[key] = getattr(v['train_item'], agg)()
 
     return new_rep
 
@@ -183,8 +173,16 @@ weight_table = [
     ('wlm'                     , (2.78, 6487.87603739007)),
 ]
 
-df = pd.DataFrame(filer_report(perf_reports))
-df.loc[:, 'result'] = (df.sum(axis=1) - df.max(axis=1) - df.min(axis=1)) / (df.count(axis=1) - 2)
+
+def show_perf(folder_name):
+    perf_reports = extract_reports(folder_name)
+    df = pd.DataFrame(filer_report(perf_reports, 'avg'))
+
+    sd = df.std(axis=1)
+    df.loc[:, 'result'] = (df.sum(axis=1) - df.max(axis=1) - df.min(axis=1)) / (df.count(axis=1) - 2)
+    df.loc[:, 'sd'] = sd
+
+    return df.loc[:, ('result', 'sd')]
 
 
 def compute_overall_score(df, col='result'):
@@ -206,15 +204,8 @@ def compute_overall_score(df, col='result'):
     return final_report
 
 
-report= compute_overall_score(df)
-print(json.dumps(report, indent=2))
-
-df.to_csv('report.csv')
-
-
-# Over 10 tests
-# Check variance
 def check_variance(df):
+
     scores = []
     for i in ['output2', 'output8', 'output1', 'output10', 'output4', 'output5',
               'output9', 'output7', 'output6', 'output0', 'output3']:
@@ -234,5 +225,22 @@ def check_variance(df):
     return scores
 
 
-check_variance(df)
+def other(df):
+    report = compute_overall_score(df)
+    print(json.dumps(report, indent=2))
 
+    df.to_csv('report.csv')
+
+    check_variance(df)
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--reports')
+
+    args = parser.parse_args()
+    df = show_perf(args.reports)
+
+    print(df)
