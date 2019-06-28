@@ -1,3 +1,0 @@
-[console_scripts]
-mlbench-report = report.report:main
-
