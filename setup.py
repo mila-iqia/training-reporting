@@ -5,11 +5,16 @@ from setuptools import setup
 
 if __name__ == '__main__':
     setup(
-        name='perf',
+        name='reporting',
         version='0.0.0',
-        description='Implement a few utilities to help benchmark code',
+        description='Analyse benchmark results',
         author='Pierre Delaunay',
         packages=[
-            'perf',
+            'report',
         ],
+        entry_points={
+            'console_scripts': [
+                'mlbench-report = report.report:main',
+            ]
+        }
     )

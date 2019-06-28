@@ -234,7 +234,7 @@ def other(df):
     check_variance(df)
 
 
-if __name__ == '__main__':
+def main():
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -244,3 +244,7 @@ if __name__ == '__main__':
     df = show_perf(args.reports)
 
     print(df)
+
+
+if __name__ == '__main__':
+    main()
