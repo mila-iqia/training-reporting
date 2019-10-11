@@ -174,6 +174,13 @@ weight_table = [
 ]
 
 
+def load_comparison_data():
+    import os
+    import report
+    dirname = os.path.dirname(report.__file__)
+    return pd.read_csv(f'{dirname}/data.csv', index_col='bench')
+
+
 def show_perf(folder_name, report_name):
     perf_reports = extract_reports(folder_name, report_name)
     df = pd.DataFrame(filer_report(perf_reports, 'avg'))
@@ -241,19 +248,83 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--reports', type=str, help='folder containing all the reports reports/folder/name.json')
     parser.add_argument('--name', type=str, default='baselines', help='name of the report to load')
+    parser.add_argument('--show-comparison', action='store_true', default=False)
+    parser.add_argument('--gpu-model', choices=['V100', 'MI50', 'RTX'], default=None)
 
     args = parser.parse_args()
+
     df = show_perf(args.reports, args.name)
+    print()
 
     pd.set_option('display.max_colwidth', 80)
     pd.set_option('display.max_rows', 500)
     pd.set_option('display.max_columns', 500)
     pd.set_option('display.width', 1000)
 
+    na_rows =  df[df.isna().any(axis=1)]
+
+    if args.show_comparison:
+        baselines = load_comparison_data()
+
+        if args.gpu_model:
+            baselines = baselines[args.gpu_model]
+
+        print('=' * 80)
+        print(' ' * 12, 'Baselines')
+        print('-' * 80)
+        print(baselines)
+        print('=' * 80, '\n')
+
+    if len(na_rows):
+        print('>' * 80)
+        print('Dropped Rows because of NaN\n')
+        print('/!\\ if sd is the column with nans; it means there were not enough observations to compute the standard deviation\n')
+        print(na_rows)
+        print('<' * 80)
+
+    df = df.dropna()
+
+
+    perf_score = None
+    if args.gpu_model:
+        baselines = load_comparison_data()[args.gpu_model]
+
+        names = []
+        for k in df.index:
+            name, _, _, = k.rsplit('_', maxsplit=2)
+            names.append(name)
+
+        df.insert(0, 'bench', names)
+        df = df.set_index('bench')
+
+        df['target'] = baselines
+        df['diff'] = (df['result'] - df['target']) / df['target']
+
+
     print('--')
+    df = df.ix[:, ('target', 'result', 'sd', 'sd%', 'diff')]
     print(df)
     print('--')
-    print(f'Error Margin: {df["sd%"].mean() * 100:.4f} %')
+
+    # Compute Scores
+    # --------------
+    sd_quantile = df["sd%"].quantile(0.80) * 100
+    sd_sd = df["sd%"].std() * 100
+    perf_score = df['diff'].mean()
+    perf_dev = df['diff'].std()
+
+    print(f'\nStatistics     |     Value | Pass |')
+    print(   '---------------|-----------|------|')
+    print(f'Quantile (80%) : {sd_quantile:+.4f} % | {sd_quantile < 5} |')
+    print(f'Deviation      : {      sd_sd:+.4f} % | {sd_sd < 5} |')
+
+    if perf_score:
+        print(f'Performance    : {perf_score:+.4f} % | {perf_score >= 0} ')
+        # Not a criterion for now
+        # print(f'Performance dev: {perf_dev:+.4f} % | {perf_score >= 0} ')
+
+    print('--')
+
 
 
 if __name__ == '__main__':
