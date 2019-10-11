@@ -16,5 +16,6 @@ if __name__ == '__main__':
             'console_scripts': [
                 'mlbench-report = report.report:main',
             ]
-        }
+        },
+        include_package_data=True
     )
