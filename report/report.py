@@ -305,22 +305,31 @@ def main():
 
     # Compute Scores
     # --------------
+    perf_score = None
     sd_quantile = df["sd%"].quantile(0.80) * 100
     sd_sd = df["sd%"].std() * 100
-    perf_score = df['diff'].mean()
-    perf_dev = df['diff'].std()
+
+    try:
+        perf_score = df['diff'].mean()
+        perf_dev = df['diff'].std()
+
+    except Exception as e:
+        print(f'/!\\ Warning exception {e} occurred')
 
     print()
-    print(f'Statistics     |     Value | Pass |')
-    print(f'---------------|-----------|------|')
-    print(f'Bench Passes   :           | {len(df["sd"]) == 19}')
-    print(f'Quantile (80%) : {sd_quantile:+.4f} % | {sd_quantile < 5} |')
-    # print(f'Deviation      : {      sd_sd:+.4f} % | {sd_sd < 5} |')
+    print(f'Statistics               |     Value | Pass |')
+    print(f'-------------------------|-----------|------|')
+    print(f'Bench Passes             :           | {len(df["sd"]) == 19}')
+    print(f'Deviation Quantile (80%) : {sd_quantile:+.4f} % | {sd_quantile < 5} |')
+
+    if False:
+        print(f'Deviation sd             : {      sd_sd:+.4f} % | {sd_sd < 5} |')
 
     if perf_score:
-        print(f'Performance    : {perf_score:+.4f} % | {perf_score >= 0} ')
-        # Not a criterion for now
-        # print(f'Performance dev: {perf_dev:+.4f} % | {perf_score >= 0} ')
+        print(f'Performance              : {perf_score:+.4f} % | {perf_score >= 0} ')
+
+        if False:
+            print(f'Performance sd           : {perf_dev:+.4f} % | {perf_score >= 0} ')
 
     print('--')
 
