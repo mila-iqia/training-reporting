@@ -278,14 +278,12 @@ def main():
     if len(na_rows):
         print('>' * 80)
         print('Dropped Rows because of NaN\n')
-        print('/!\\ if sd is the column with nans; it means there were not enough observations to compute the standard deviation\n')
+        print('/!\\ if there are nans; it means there were not enough observations to compute the standard deviation\n')
         print(na_rows)
         print('<' * 80)
 
     df = df.dropna()
 
-
-    perf_score = None
     if args.gpu_model:
         baselines = load_comparison_data()[args.gpu_model]
 
@@ -300,7 +298,6 @@ def main():
         df['target'] = baselines
         df['diff'] = (df['result'] - df['target']) / df['target']
 
-
     print('--')
     df = df.ix[:, ('target', 'result', 'sd', 'sd%', 'diff')]
     print(df)
@@ -313,9 +310,10 @@ def main():
     perf_score = df['diff'].mean()
     perf_dev = df['diff'].std()
 
-    print(f'\nStatistics     |     Value | Pass |')
-    print(   '---------------|-----------|------|')
-    print(f'Bench Passes   : {len(df["sd"]) == 19}')
+    print()
+    print(f'Statistics     |     Value | Pass |')
+    print(f'---------------|-----------|------|')
+    print(f'Bench Passes   :           | {len(df["sd"]) == 19}')
     print(f'Quantile (80%) : {sd_quantile:+.4f} % | {sd_quantile < 5} |')
     # print(f'Deviation      : {      sd_sd:+.4f} % | {sd_sd < 5} |')
 
@@ -325,7 +323,6 @@ def main():
         # print(f'Performance dev: {perf_dev:+.4f} % | {perf_score >= 0} ')
 
     print('--')
-
 
 
 if __name__ == '__main__':
