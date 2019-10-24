@@ -315,8 +315,9 @@ def main():
 
     print(f'\nStatistics     |     Value | Pass |')
     print(   '---------------|-----------|------|')
+    print(f'Bench Passes   : {len(df["sd"]) == 19}')
     print(f'Quantile (80%) : {sd_quantile:+.4f} % | {sd_quantile < 5} |')
-    print(f'Deviation      : {      sd_sd:+.4f} % | {sd_sd < 5} |')
+    # print(f'Deviation      : {      sd_sd:+.4f} % | {sd_sd < 5} |')
 
     if perf_score:
         print(f'Performance    : {perf_score:+.4f} % | {perf_score >= 0} ')
