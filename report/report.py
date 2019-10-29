@@ -247,7 +247,7 @@ def main():
 
     parser = argparse.ArgumentParser()
     parser.add_argument('--reports', type=str, help='folder containing all the reports reports/folder/name.json')
-    parser.add_argument('--name', type=str, default='baselines', help='name of the report to load')
+    parser.add_argument('--name', type=str, default='fast', help='name of the report to load')
     parser.add_argument('--show-comparison', action='store_true', default=False)
     parser.add_argument('--gpu-model', choices=['V100', 'MI50', 'RTX'], default=None)
 
